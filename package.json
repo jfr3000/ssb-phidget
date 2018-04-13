@@ -1,0 +1,15 @@
+{
+  "name": "ssb-phidget",
+  "version": "1.0.0",
+  "description": "An sbot plugin for phidget encoders.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Julia Friesel <julia.friesel@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "phidget22": "^2.0.7",
+    "pull-defer": "^0.2.2"
+  }
+}
