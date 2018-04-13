@@ -9,6 +9,7 @@
   "author": "Julia Friesel <julia.friesel@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "once": "^1.4.0",
     "phidget22": "^2.0.7",
     "pull-defer": "^0.2.2"
   }

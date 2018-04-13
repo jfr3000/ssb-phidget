@@ -1,36 +1,45 @@
 'use strict'
 
 const jPhidget22 = require('phidget22')
+const once = require('once')
 
-async function connectToPhidget(deferredPositions) {
+const connectToIOBoard = once(async function () {
   // TODO extract config
   const url = 'phid://localhost:5661'
-
   console.log('connecting to:' + url)
   const conn = new jPhidget22.Connection(url, { name: 'Server Connection', passwd: '' })
+  return conn.connect()
+})
+
+async function setUpDataStream (channelIndex, streamSource) {
   try {
-    await conn.connect()
+    await connectToIOBoard()
   } catch (err) {
     console.error('Error connecting to phidget:')
     console.error(err)
+    return
   }
-  openChannelsToEncoders(deferredPositions)
+  openChannelToPhidget(channelIndex, streamSource)
 }
 
-async function openChannelsToEncoders(deferredPositions) {
+
+async function openChannelToPhidget(channelIndex, streamSource) {
   const channel = new jPhidget22.Encoder()
 
+  channel.channel = channelIndex
+
   channel.onAttach = function () {
-    console.log(channel + ' attached')
+    console.log(channel.getChannel() + ' opened')
     channel.setDataInterval(1000)
     channel.setPositionChangeTrigger(1)
-    deferredPositions.resolve(getSource(channel))
+    streamSource.resolve(getSource(channel))
   }
 
   channel.onDetach = function (ch) {
     console.log(ch + ' detached')
   }
 
+  console.log('attempting to open channel ' + channelIndex)
   channel.open()
 }
 
@@ -63,10 +72,10 @@ function getSource(channel) {
   }
 }
 
-function getPositionsStream() {
-  const positions = require('pull-defer').source()
-  connectToPhidget(positions)
-  return positions
+function getPositionsStream(channelIndex) {
+  const positionsSource = require('pull-defer').source()
+  setUpDataStream(channelIndex, positionsSource)
+  return positionsSource
 }
 
 
