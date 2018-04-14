@@ -4,28 +4,28 @@ const jPhidget22 = require('phidget22')
 
 async function openChannelToPhidget(channelIndex, streamSource, opts) {
   if (!opts) opts = {}
-  const channel = new jPhidget22.Encoder()
 
+  let latestPos = null
+  let cbQueue = []
+  let ended = null
+
+  const channel = new jPhidget22.Encoder()
   channel.setChannel(channelIndex)
 
   channel.onAttach = function () {
     console.log(channel.getChannel() + ' opened')
     if (opts.dataInterval) channel.setDataInterval(opts.dataInterval)
     if (opts.positionChangeTrigger) channel.setPositionChangeTrigger(opts.positionChangeTrigger)
-    streamSource.resolve(getSource(channel))
   }
 
   channel.onDetach = function () {
     console.log(channel.getChannel() + ' detached')
   }
 
-  console.log('attempting to open channel ' + channel.getChannel())
-  channel.open()
-}
-
-function getSource(channel) {
-  let latestPos = null
-  let cbQueue = []
+  channel.onError = (err) => {
+    console.err(err)
+    ended = err
+  }
 
   channel.onPositionChange = () => {
     latestPos = channel.getPosition()
@@ -37,8 +37,17 @@ function getSource(channel) {
     }
   }
 
-  let ended = null
-  return function read(end, cb) {
+  streamSource.resolve(read)
+
+  try {
+    console.log('attempting to open channel ' + channel.getChannel())
+    await channel.open(opts.channelConnectionTimeout || 1000)
+  } catch (err) {
+    console.err(err)
+    cbQueue.shift()(err)
+  }
+
+  function read(end, cb) {
     if (end) ended = end
     if (ended) {
       channel.onPositionChange = () => {}
@@ -77,6 +86,7 @@ const connectToServer = (function () {
     console.log('starting new server connection')
     connection = new jPhidget22.Connection(phidgetServerConfig)
     connection.onConnect = () => console.log('connected to phidget server')
+
     try {
       await connection.connect()
       cb(null)
