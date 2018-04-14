@@ -40,7 +40,11 @@ function getSource(channel) {
   let ended = null
   return function read(end, cb) {
     if (end) ended = end
-    if (ended) return cb(ended)
+    if (ended) {
+      delete channel.onPositionChange
+      channel.close()
+      return cb(ended)
+    }
     if (latestPos === null) {
       cbQueue.push(cb)
     } else {
