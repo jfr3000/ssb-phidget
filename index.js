@@ -1,23 +1,11 @@
 'use strict'
 
 const jPhidget22 = require('phidget22')
-const once = require('once')
-
-const connectToPhidgetServer = once(async function (phidgetServerConfig) {
-  try {
-    const connection = new jPhidget22.Connection(phidgetServerConfig)
-    await connection.connect()
-  } catch (err) {
-    console.error('Error connecting to phidget:')
-    console.error(err)
-    return
-  }
-})
 
 async function openChannelToPhidget(channelIndex, streamSource) {
   const channel = new jPhidget22.Encoder()
 
-  channel.channel = channelIndex
+  channel.setChannel(channelIndex)
 
   channel.onAttach = function () {
     console.log(channel.getChannel() + ' opened')
@@ -26,11 +14,11 @@ async function openChannelToPhidget(channelIndex, streamSource) {
     streamSource.resolve(getSource(channel))
   }
 
-  channel.onDetach = function (ch) {
-    console.log(ch + ' detached')
+  channel.onDetach = function () {
+    console.log(channel.getChannel() + ' detached')
   }
 
-  console.log('attempting to open channel ' + channelIndex)
+  console.log('attempting to open channel ' + channel.getChannel())
   channel.open()
 }
 
@@ -62,18 +50,35 @@ function getSource(channel) {
   }
 }
 
-function getStream(channelIndex, phidgetServerConfig) {
+function getStream(channelIndex) {
   const streamSource = require('pull-defer').source()
-  connectToPhidgetServer(phidgetServerConfig)
   openChannelToPhidget(channelIndex, streamSource)
   return streamSource
+}
+
+async function connectToServer(phidgetServerConfig, cb) {
+  if (typeof phidgetServerConfig === 'function') {
+    console.log('yup this runs')
+    cb = phidgetServerConfig
+    phidgetServerConfig = undefined
+  }
+  const connection = new jPhidget22.Connection(phidgetServerConfig)
+  connection.onError = console.log
+  try {
+    await connection.connect()
+    console.log('connected to server')
+    cb(null)
+  } catch (err) {
+    cb(err)
+  }
 }
 
 module.exports = {
   name: 'phidget',
   version: '1.0.0',
   manifest: {
-    getStream: 'source'
+    getStream: 'source',
+    connectToServer: 'async'
   },
-  init: () => ({ getStream })
+  init: () => ({ getStream, connectToServer })
 }
