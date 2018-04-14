@@ -2,15 +2,16 @@
 
 const jPhidget22 = require('phidget22')
 
-async function openChannelToPhidget(channelIndex, streamSource) {
+async function openChannelToPhidget(channelIndex, streamSource, opts) {
+  if (!opts) opts = {}
   const channel = new jPhidget22.Encoder()
 
   channel.setChannel(channelIndex)
 
   channel.onAttach = function () {
     console.log(channel.getChannel() + ' opened')
-    channel.setDataInterval(1000)
-    channel.setPositionChangeTrigger(1)
+    if (opts.dataInterval) channel.setDataInterval(opts.dataInterval)
+    if (opts.positionChangeTrigger) channel.setPositionChangeTrigger(opts.positionChangeTrigger)
     streamSource.resolve(getSource(channel))
   }
 
@@ -50,20 +51,18 @@ function getSource(channel) {
   }
 }
 
-function getStream(channelIndex) {
+function getStream(channelIndex, streamOptions) {
   const streamSource = require('pull-defer').source()
-  openChannelToPhidget(channelIndex, streamSource)
+  openChannelToPhidget(channelIndex, streamSource, streamOptions)
   return streamSource
 }
 
 async function connectToServer(phidgetServerConfig, cb) {
   if (typeof phidgetServerConfig === 'function') {
-    console.log('yup this runs')
     cb = phidgetServerConfig
     phidgetServerConfig = undefined
   }
   const connection = new jPhidget22.Connection(phidgetServerConfig)
-  connection.onError = console.log
   try {
     await connection.connect()
     console.log('connected to server')
