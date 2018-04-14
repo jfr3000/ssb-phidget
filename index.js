@@ -36,14 +36,13 @@ async function openChannelToPhidget(channelIndex, streamSource) {
 
 function getSource(channel) {
   let latestPos = null
-  let cbForLater = null
+  let cbQueue = []
 
   channel.onPositionChange = () => {
     latestPos = channel.getPosition()
-    if (cbForLater) {
-      const cb = cbForLater
+    if (cbQueue.length) {
+      const cb = cbQueue.shift()
       const lp = latestPos
-      cbForLater = null
       latestPos = null
       cb(null, lp)
     }
@@ -54,7 +53,7 @@ function getSource(channel) {
     if (end) ended = end
     if (ended) return cb(ended)
     if (latestPos === null) {
-      cbForLater = cb
+      cbQueue.push(cb)
     } else {
       let lp = latestPos
       latestPos = null
