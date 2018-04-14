@@ -3,25 +3,16 @@
 const jPhidget22 = require('phidget22')
 const once = require('once')
 
-const connectToIOBoard = once(async function () {
-  // TODO extract config
-  const url = 'phid://localhost:5661'
-  console.log('connecting to:' + url)
-  const conn = new jPhidget22.Connection(url, { name: 'Server Connection', passwd: '' })
-  return conn.connect()
-})
-
-async function setUpDataStream (channelIndex, streamSource) {
+const connectToPhidgetServer = once(async function (phidgetServerConfig) {
   try {
-    await connectToIOBoard()
+    const connection = new jPhidget22.Connection(phidgetServerConfig)
+    await connection.connect()
   } catch (err) {
     console.error('Error connecting to phidget:')
     console.error(err)
     return
   }
-  openChannelToPhidget(channelIndex, streamSource)
-}
-
+})
 
 async function openChannelToPhidget(channelIndex, streamSource) {
   const channel = new jPhidget22.Encoder()
@@ -72,18 +63,18 @@ function getSource(channel) {
   }
 }
 
-function getPositionsStream(channelIndex) {
-  const positionsSource = require('pull-defer').source()
-  setUpDataStream(channelIndex, positionsSource)
-  return positionsSource
+function getStream(channelIndex, phidgetServerConfig) {
+  const streamSource = require('pull-defer').source()
+  connectToPhidgetServer(phidgetServerConfig)
+  openChannelToPhidget(channelIndex, streamSource)
+  return streamSource
 }
-
 
 module.exports = {
   name: 'phidget',
   version: '1.0.0',
   manifest: {
-    getPositionsStream: 'source'
+    getStream: 'source'
   },
-  init: () => ({ getPositionsStream })
+  init: () => ({ getStream })
 }
