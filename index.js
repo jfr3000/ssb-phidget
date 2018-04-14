@@ -41,7 +41,7 @@ function getSource(channel) {
   return function read(end, cb) {
     if (end) ended = end
     if (ended) {
-      delete channel.onPositionChange
+      channel.onPositionChange = () => {}
       channel.close()
       return cb(ended)
     }
@@ -61,20 +61,30 @@ function getStream(channelIndex, streamOptions) {
   return streamSource
 }
 
-async function connectToServer(phidgetServerConfig, cb) {
-  if (typeof phidgetServerConfig === 'function') {
-    cb = phidgetServerConfig
-    phidgetServerConfig = undefined
+const connectToServer = (function () {
+  let connection
+  return async function (phidgetServerConfig, cb) {
+    if (typeof phidgetServerConfig === 'function') {
+      cb = phidgetServerConfig
+      phidgetServerConfig = undefined
+    }
+
+    if (connection) {
+      console.log('closing old server connection')
+      connection.close()
+    }
+
+    console.log('starting new server connection')
+    connection = new jPhidget22.Connection(phidgetServerConfig)
+    connection.onConnect = () => console.log('connected to phidget server')
+    try {
+      await connection.connect()
+      cb(null)
+    } catch (err) {
+      cb(err)
+    }
   }
-  const connection = new jPhidget22.Connection(phidgetServerConfig)
-  try {
-    await connection.connect()
-    console.log('connected to server')
-    cb(null)
-  } catch (err) {
-    cb(err)
-  }
-}
+}())
 
 module.exports = {
   name: 'phidget',
