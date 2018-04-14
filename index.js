@@ -20,11 +20,12 @@ async function openChannelToPhidget(channelIndex, streamSource, opts) {
 
   channel.onDetach = function () {
     console.log(channel.getChannel() + ' detached')
+    handleStreamEnd(true)
   }
 
   channel.onError = (err) => {
-    console.err(err)
-    ended = err
+    console.error(err)
+    handleStreamEnd(err)
   }
 
   channel.onPositionChange = () => {
@@ -43,15 +44,16 @@ async function openChannelToPhidget(channelIndex, streamSource, opts) {
     console.log('attempting to open channel ' + channel.getChannel())
     await channel.open(opts.channelConnectionTimeout || 1000)
   } catch (err) {
-    console.err(err)
-    cbQueue.shift()(err)
+    console.error(err)
+    handleStreamEnd(err)
   }
 
   function read(end, cb) {
-    if (end) ended = end
+    if (end) {
+      ended = end
+      destroyChannel(channel)
+    }
     if (ended) {
-      channel.onPositionChange = () => {}
-      channel.close()
       return cb(ended)
     }
     if (latestPos === null) {
@@ -61,6 +63,12 @@ async function openChannelToPhidget(channelIndex, streamSource, opts) {
       latestPos = null
       cb(null, lp)
     }
+  }
+
+  function handleStreamEnd(val) {
+    ended = val
+    if (cbQueue.length) cbQueue.shift()(ended)
+    destroyChannel(channel)
   }
 }
 
@@ -95,6 +103,13 @@ const connectToServer = (function () {
     }
   }
 }())
+
+function destroyChannel(channel) {
+  ['onAttach', 'onDetach', 'onError', 'onPositionChange'].forEach(listener => {
+    channel[listener] = () => {}
+  })
+  channel.close()
+}
 
 module.exports = {
   name: 'phidget',
